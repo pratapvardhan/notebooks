@@ -112,7 +112,7 @@
         <td class="change pos">(+<b>{{ '{0:,.0f}'.format(row['Recovered (+)']) }}</b>)</td>
       </tr>
     {% endfor %}
-    <tbody>
+    </tbody>
   </table>
 </div>
 <style>
