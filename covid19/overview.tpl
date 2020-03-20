@@ -1,21 +1,37 @@
 {# D, table, newcases, np, pd  #}
 {% set lastdays = (D['updated'] - D['since']).days %}
-{% macro kpi(name, number, growth) -%}
+{% set colorscale = ['rgba(255, 152, 0, 0.1)', 'rgba(255, 152, 0, 0.4)', 'rgba(255, 152, 0, 0.7)', 'rgba(255, 152, 0, 1)'] %}
+{% macro kpi(name, number, growth, growcls='') -%}
   <div class="kpi">
     <div class="kname">{{ name }}</div>
-    <div class="num">{{ '{0:,}'.format(number) }}</div>
-    <div class="grow">(+{{ '{0:,}'.format(growth) }})</div>
+    <div class="num">{{ '{0:,.0f}'.format(number) }}</div>
+    <div class="grow {{ growcls }}">(+<b>{{ '{0:,.0f}'.format(growth) }}</b>)</div>
   </div>
 {%- endmacro %}
 
 {% macro plotstrip(arr) -%}
-  <div class="d-flex" style="height: 15px;">
-    {% set colorscale = ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.7)', 'rgba(0, 0, 0, 1)'] %}
+  <div class="d-flex" style="height:15px;">
     {% set colors = np.digitize(arr, [10, 100, 1000, np.inf]) %}
-    {% for c in colors %}
-    <div style="width:3px;background:{{ colorscale[c] }};border-right:1px solid rgba(255,255,255,0.5);"></div>
+    {% for i, v in np.ndenumerate(arr) %}
+    <div style="width:3px;background:{{ colorscale[colors[i[0]]] if (v) else '#eee' }};border-right:1px solid rgba(255,255,255,0.5);"></div>
     {% endfor %}
   </div>
+{%- endmacro %}
+
+{% macro legend() -%}
+<svg width="100" height="20" viewBox="0,0,100,20" style="overflow: visible; display: block;">
+  <g>
+    <rect x="0"  y="8" width="25" height="10" fill="{{ colorscale[0] }}"></rect>
+    <rect x="25" y="8" width="25" height="10" fill="{{ colorscale[1] }}"></rect>
+    <rect x="50" y="8" width="25" height="10" fill="{{ colorscale[2] }}"></rect>
+    <rect x="75" y="8" width="25" height="10" fill="{{ colorscale[3] }}"></rect>
+  </g>
+  <g style="font-size:10px;text-anchor:middle;">
+    <g transform="translate(25, 6)"><text>10</text></g>
+    <g transform="translate(50, 6)"><text>100</text></g>
+    <g transform="translate(75, 6)"><text>1000</text></g>
+  </g>
+</svg>
 {%- endmacro %}
 
 <div class="overview">
@@ -24,7 +40,7 @@
     <div class="d-flex kpi-box">
       {{ kpi(name='Confirmed Cases', number=D['Cases'], growth=D['Cases (+)']) }}
       {{ kpi(name='Deaths', number=D['Deaths'], growth=D['Deaths (+)']) }}
-      {{ kpi(name='Recovered', number=D['Recovered'], growth=D['Recovered (+)']) }}
+      {{ kpi(name='Recovered', number=D['Recovered'], growth=D['Recovered (+)'], growcls='pos') }}
     </div>
   </div>
   <p class="text-center text-uppercase fs9">Updated on <b>{{ D['updated'].strftime('%B %d, %Y') }}</b> ( +change since {{ lastdays }} days ago.)</p>
@@ -52,16 +68,20 @@
     </div>
   </div>
   <p class="text-center" style="font-size: 14px;max-width: 400px;">
-    In the last <b>{{ lastdays }} days</b>, <b>{{ '{0:,}'.format(D['Cases (+)']) }}</b> new Coronavirus cases have been reported worldwide.
-    Of which <b>{{ '{0:,}'.format(D['EU Cases (+)']) }}</b> ({{ "{0:.0%}".format(D['EU Cases (+)'] / D['Cases (+)']) }}) are from <b>Europe</b>.
-    <b>China</b> has reported <b>{{ '{0:,}'.format(D['China Cases (+)']) }}</b> new cases in the last {{ lastdays }} days.
+    In the last <b>{{ lastdays }} days</b>, <b class="color-neg">{{ '{0:,.0f}'.format(D['Cases (+)']) }}</b> new Coronavirus cases have been reported worldwide.
+    Of which <b class="color-neg">{{ '{0:,.0f}'.format(D['EU Cases (+)']) }}</b> ({{ "{0:.0%}".format(D['EU Cases (+)'] / D['Cases (+)']) }}) are from <b>Europe</b>.
+    <b>China</b> has reported <b class="color-neg">{{ '{0:,.0f}'.format(D['China Cases (+)']) }}</b> new cases in the last {{ lastdays }} days.
   </p>
-  <table class="table" style="width:fit-content;min-width:540px;margin:auto;text-align:right;color:black;font-size:13px;">
+  <table class="table" style="width:575px;">
     <thead>
       <tr>
-        <th class="text-right" style="width:110px;">Country</th>
-        <th class="text-left" style="width:100px;">New<br>Cases</th>
-        <th class="text-left" colspan="2">Total<br>Cases</th>
+        <th class="text-right" style="width:120px;"></th>
+        <th class="text-left" style="width:140px;">{{ legend( )}}</th>
+      </tr>
+      <tr>
+        <th class="text-right" style="width:120px;">Country</th>
+        <th class="text-left" style="width:140px;">New Cases</th>
+        <th class="text-left" colspan="2">Total Cases</th>
         <th colspan="2">Deaths</th>
         <th class="fs9" >Fatality</th>
         <th class="fs9" colspan="2">Recovered</th>
@@ -83,13 +103,13 @@
       <tr>
         <td class="mw"><b>{{ row['Country/Region'] }}</b></td>
         <td style="vertical-align: middle;">{{ plotstrip(arr=newcases.loc[row['Country/Region']].values) }}</td>
-        <td class="pl1">{{ '{0:,}'.format(row['Cases']) }}</td>
-        <td class="change">(+{{ '{0:,}'.format(row['Cases (+)']) }})</td>
-        <td class="pl1">{{ '{0:,}'.format(row['Deaths']) }}</td>
-        <td class="change">(+{{ '{0:,}'.format(row['Deaths (+)']) }})</td>
+        <td class="pl1"><b>{{ '{0:,.0f}'.format(row['Cases']) }}</b></td>
+        <td class="change neg">(+<b>{{ '{0:,.0f}'.format(row['Cases (+)']) }}</b>)</td>
+        <td class="pl1">{{ '{0:,.0f}'.format(row['Deaths']) }}</td>
+        <td class="change neg">(+<b>{{ '{0:,.0f}'.format(row['Deaths (+)']) }}</b>)</td>
         <td class="pl1">{{ row['Fatality Rate'] }}%</td>
-        <td>{{ '{0:,}'.format(row['Recovered']) }}</td>
-        <td class="change">(+{{ '{0:,}'.format(row['Recovered (+)']) }})</td>
+        <td>{{ '{0:,.0f}'.format(row['Recovered']) }}</td>
+        <td class="change pos">(+<b>{{ '{0:,.0f}'.format(row['Recovered (+)']) }}</b>)</td>
       </tr>
     {% endfor %}
     <tbody>
@@ -99,10 +119,17 @@
 .overview {
   min-width: 500px;
   font-size: 10px;
+  font-family: "Segoe UI", SegoeUI, Roboto, "Segoe WP", "Helvetica Neue", "Helvetica", "Tahoma", "Arial", sans-serif !important;
 }
 .overview p {
   margin: 6px auto !important;
   padding: 0;
+}
+@media screen and (max-width: 660px) {
+  .overview p { max-width: none !important; }
+}
+.overview b {
+  font-weight: bolder;
 }
 .overview .kpi-hed {
   font-weight: bold;
@@ -122,6 +149,17 @@
 }
 .overview .kpi .grow {
   line-height: 12px;
+  font-size: 12px;
+}
+.overview .table .change.pos , .overview .kpi .grow.pos {
+  color: #118822;
+}
+.overview .table .change.neg, .overview .kpi .grow, .color-neg {
+  color: #cc1100;
+}
+.overview p .color-neg {
+  background: #ececec;
+  padding: 0 5px;
 }
 .overview .kpi .kname {
   font-size: 12px;
@@ -131,9 +169,6 @@
   line-height: 10px;
   padding-top: 10px !important;
 }
-.overview .kpi .grow {
-  font-size: 10px;
-}
 .overview .kpi-sm .num {
   font-size: 20px;
   line-height: 20px;
@@ -142,13 +177,22 @@
   font-size: 11px;
   line-height: 10px;
 }
+.overview .table {
+  border-collapse: collapse;
+  margin: auto !important;
+  text-align: right;
+  margin-top: 14px;
+  color: black;
+  font-size: 13px;
+  display: table !important;
+}
 .overview .table .change {
   color: #999;
   font-size: 80%;
   text-align: start;
   vertical-align: inherit;
   font-weight: normal;
-  padding-left: 0 !important;
+  padding-left: 1px !important;
 }
 .overview .table th {
   font-weight: normal;
@@ -158,11 +202,10 @@
   background: none;
 }
 .overview .table td, .overview .table th {
-  padding: 1px 1px 1px 5px !important;
+  padding: 1px 1px 1px 10px !important;
   vertical-align: middle;
   border: none;
   background: none;
-  max-width: none;
 }
 .overview .table th {
   text-align: center;
@@ -170,9 +213,6 @@
 }
 .overview .table thead {
   border-bottom: 1px solid black;
-}
-.overview .table .mw {
-  max-width: 20px;
 }
 .overview .fs9 {
   font-size: 9px;
