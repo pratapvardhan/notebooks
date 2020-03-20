@@ -1,19 +1,51 @@
 {# D, table, newcases, np, pd  #}
+{% set COL_REGION = COL_REGION or 'Country/Region' %}
+{% set KPI_CASE = KPI_CASE or 'World' %}
+{% set KPIS_INFO = KPIS_INFO or [{'title': 'China', 'prefix': 'China'}, {'title': 'Europe', 'prefix': 'EU'}, {'title': 'U.S.', 'prefix': 'US'}] %}
+{% set LEGEND_DOMAIN = LEGEND_DOMAIN or [10, 100, 1000, np.inf] %}
+{% set WIDTH_REGION, WIDTH_STRIP = 120, 140 %}
+{% set STRIP_WIDTH = (WIDTH_REGION // newcases.shape[1] + 1) %}
+{% set LEGEND_RANGE = ['rgba(255, 152, 0, 0.1)', 'rgba(255, 152, 0, 0.4)', 'rgba(255, 152, 0, 0.7)', 'rgba(255, 152, 0, 1)'] %}
+
 {% set lastdays = (D['updated'] - D['since']).days %}
-{% set colorscale = ['rgba(255, 152, 0, 0.1)', 'rgba(255, 152, 0, 0.4)', 'rgba(255, 152, 0, 0.7)', 'rgba(255, 152, 0, 1)'] %}
+
 {% macro kpi(name, number, growth, growcls='') -%}
   <div class="kpi">
     <div class="kname">{{ name }}</div>
     <div class="num">{{ '{0:,.0f}'.format(number) }}</div>
-    <div class="grow {{ growcls }}">(+<b>{{ '{0:,.0f}'.format(growth) }}</b>)</div>
+    <div class="grow {{ growcls }}">(<b>{{ '{0:+,.0f}'.format(growth) }}</b>)</div>
   </div>
+{%- endmacro %}
+
+{% macro kpiblocksm(prefix='', title=KPI_CASE) -%}
+  <div class="kpi-sm">
+    <div class="kpi-hed">{{ title }}</div>
+    <div class="d-flex kpi-box">
+      {{ kpi(name='Cases', number=D[prefix + ' Cases'], growth=D[prefix + ' Cases (+)']) }}
+      {{ kpi(name='Deaths', number=D[prefix + ' Deaths'], growth=D[prefix + ' Deaths (+)']) }}
+    </div>
+  </div>
+{%- endmacro %}
+
+{% macro narrative() -%}
+{% if KPI_CASE == 'World' %}
+  In the last <b>{{ lastdays }} days</b>, <b class="color-neg">{{ '{0:,.0f}'.format(D['Cases (+)']) }}</b> new Coronavirus cases have been reported worldwide.
+  Of which <b class="color-neg">{{ '{0:,.0f}'.format(D['EU Cases (+)']) }}</b> ({{ "{0:.0%}".format(D['EU Cases (+)'] / D['Cases (+)']) }}) are from <b>Europe</b>.
+  <b>China</b> has reported <b class="color-neg">{{ '{0:,.0f}'.format(D['China Cases (+)']) }}</b> new cases in the last {{ lastdays }} days.
+{% elif KPI_CASE == 'US' %}
+  In the last <b>{{ lastdays }} days</b>, <b class="color-neg">{{ '{0:,.0f}'.format(D['Cases (+)']) }}</b> new Coronavirus cases have been reported in the US.
+  Of which <b class="color-neg">{{ '{0:,.0f}'.format(D['NY Cases (+)']) }}</b> ({{ "{0:.0%}".format(D['NY Cases (+)'] / D['Cases (+)']) }}) are from <b>New York</b> State.
+  <b>Washington</b> has reported <b class="color-neg">{{ '{0:,.0f}'.format(D['WA Cases (+)']) }}</b> new cases in the last {{ lastdays }} days.
+{% else %}
+  ''
+{% endif %}
 {%- endmacro %}
 
 {% macro plotstrip(arr) -%}
   <div class="d-flex" style="height:15px;">
-    {% set colors = np.digitize(arr, [10, 100, 1000, np.inf]) %}
-    {% for i, v in np.ndenumerate(arr) %}
-    <div style="width:3px;background:{{ colorscale[colors[i[0]]] if (v) else '#eee' }};border-right:1px solid rgba(255,255,255,0.5);"></div>
+    {% set colors = np.digitize(arr, LEGEND_DOMAIN) %}
+    {% for i, v in enumerate(arr) %}
+    <div style="width:{{ STRIP_WIDTH }}px;background:{{ LEGEND_RANGE[colors[i]] if (v) else '#eee' }};border-right:1px solid rgba(255,255,255,0.5);"></div>
     {% endfor %}
   </div>
 {%- endmacro %}
@@ -21,22 +53,21 @@
 {% macro legend() -%}
 <svg width="100" height="20" viewBox="0,0,100,20" style="overflow: visible; display: block;">
   <g>
-    <rect x="0"  y="8" width="25" height="10" fill="{{ colorscale[0] }}"></rect>
-    <rect x="25" y="8" width="25" height="10" fill="{{ colorscale[1] }}"></rect>
-    <rect x="50" y="8" width="25" height="10" fill="{{ colorscale[2] }}"></rect>
-    <rect x="75" y="8" width="25" height="10" fill="{{ colorscale[3] }}"></rect>
+    {% for i, _ in enumerate(LEGEND_DOMAIN) %}
+    <rect x="{{ 25 * i }}"  y="8" width="25" height="10" fill="{{ LEGEND_RANGE[i] }}"></rect>
+    {% endfor %}
   </g>
   <g style="font-size:10px;text-anchor:middle;">
-    <g transform="translate(25, 6)"><text>10</text></g>
-    <g transform="translate(50, 6)"><text>100</text></g>
-    <g transform="translate(75, 6)"><text>1000</text></g>
-  </g>
+    {% for i, x in enumerate(LEGEND_DOMAIN[:-1], 1) %}
+    <g transform="translate({{ 25 * i }}, 6)"><text>{{ x }}</text></g>
+    {% endfor %}
+    </g>
 </svg>
 {%- endmacro %}
 
 <div class="overview">
   <div>
-    <div class="kpi-hed">World</div>
+    <div class="kpi-hed">{{ KPI_CASE }}</div>
     <div class="d-flex kpi-box">
       {{ kpi(name='Confirmed Cases', number=D['Cases'], growth=D['Cases (+)']) }}
       {{ kpi(name='Deaths', number=D['Deaths'], growth=D['Deaths (+)']) }}
@@ -45,42 +76,21 @@
   </div>
   <p class="text-center text-uppercase fs9">Updated on <b>{{ D['updated'].strftime('%B %d, %Y') }}</b> ( +change since {{ lastdays }} days ago.)</p>
   <div class="d-flex" style="justify-content:space-between;">
-    <div class="kpi-sm">
-      <div class="kpi-hed">China</div>
-      <div class="d-flex kpi-box">
-        {{ kpi(name='Cases', number=D['China Cases'], growth=D['China Cases (+)']) }}
-        {{ kpi(name='Deaths', number=D['China Deaths'], growth=D['China Deaths (+)']) }}
-      </div>
-    </div>
-    <div class="kpi-sm">
-      <div class="kpi-hed">Europe</div>
-      <div class="d-flex kpi-box">
-        {{ kpi(name='Cases', number=D['EU Cases'], growth=D['EU Cases (+)']) }}
-        {{ kpi(name='Deaths', number=D['EU Deaths'], growth=D['EU Deaths (+)']) }}
-      </div>
-    </div>
-    <div class="kpi-sm">
-      <div class="kpi-hed">U.S.</div>
-      <div class="d-flex kpi-box">
-        {{ kpi(name='Cases', number=D['US Cases'], growth=D['US Cases (+)']) }}
-        {{ kpi(name='Deaths', number=D['US Deaths'], growth=D['US Deaths (+)']) }}
-      </div>
-    </div>
+    {% for kpi in KPIS_INFO %}
+    {{ kpiblocksm(**kpi) }}
+    {% endfor %}
   </div>
-  <p class="text-center" style="font-size: 14px;max-width: 400px;">
-    In the last <b>{{ lastdays }} days</b>, <b class="color-neg">{{ '{0:,.0f}'.format(D['Cases (+)']) }}</b> new Coronavirus cases have been reported worldwide.
-    Of which <b class="color-neg">{{ '{0:,.0f}'.format(D['EU Cases (+)']) }}</b> ({{ "{0:.0%}".format(D['EU Cases (+)'] / D['Cases (+)']) }}) are from <b>Europe</b>.
-    <b>China</b> has reported <b class="color-neg">{{ '{0:,.0f}'.format(D['China Cases (+)']) }}</b> new cases in the last {{ lastdays }} days.
-  </p>
+  <p class="text-center" style="font-size: 14px;max-width: 400px;">{{ narrative() }}</p>
   <table class="table" style="width:575px;">
     <thead>
       <tr>
-        <th class="text-right" style="width:120px;"></th>
-        <th class="text-left" style="width:140px;">{{ legend( )}}</th>
+        <th class="text-right" style="width:{{ WIDTH_REGION }}px;"></th>
+        <th class="text-left" style="width:{{ WIDTH_STRIP }}px;">{{ legend() }}</th>
+        <th colspan="7"></th>
       </tr>
       <tr>
-        <th class="text-right" style="width:120px;">Country</th>
-        <th class="text-left" style="width:140px;">New Cases</th>
+        <th class="text-right" style="width:{{ WIDTH_REGION }}px;">Country</th>
+        <th class="text-left" style="width:{{ WIDTH_STRIP }}px;">New Cases</th>
         <th class="text-left" colspan="2">Total Cases</th>
         <th colspan="2">Deaths</th>
         <th class="fs9" >Fatality</th>
@@ -101,15 +111,15 @@
       </tr>
     {% for index, row in table.iterrows() %}
       <tr>
-        <td class="mw"><b>{{ row['Country/Region'] }}</b></td>
-        <td style="vertical-align: middle;">{{ plotstrip(arr=newcases.loc[row['Country/Region']].values) }}</td>
+        <td class="mw"><b>{{ row[COL_REGION] }}</b></td>
+        <td style="vertical-align: middle;">{{ plotstrip(arr=newcases.loc[row[COL_REGION]].values) }}</td>
         <td class="pl1"><b>{{ '{0:,.0f}'.format(row['Cases']) }}</b></td>
-        <td class="change neg">(+<b>{{ '{0:,.0f}'.format(row['Cases (+)']) }}</b>)</td>
+        <td class="change neg">(<b>{{ '{0:+,.0f}'.format(row['Cases (+)']) }}</b>)</td>
         <td class="pl1">{{ '{0:,.0f}'.format(row['Deaths']) }}</td>
-        <td class="change neg">(+<b>{{ '{0:,.0f}'.format(row['Deaths (+)']) }}</b>)</td>
+        <td class="change neg">(<b>{{ '{0:+,.0f}'.format(row['Deaths (+)']) }}</b>)</td>
         <td class="pl1">{{ row['Fatality Rate'] }}%</td>
         <td>{{ '{0:,.0f}'.format(row['Recovered']) }}</td>
-        <td class="change pos">(+<b>{{ '{0:,.0f}'.format(row['Recovered (+)']) }}</b>)</td>
+        <td class="change pos">(<b>{{ '{0:+,.0f}'.format(row['Recovered (+)']) }}</b>)</td>
       </tr>
     {% endfor %}
     </tbody>
