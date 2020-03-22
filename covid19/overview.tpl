@@ -106,7 +106,7 @@
         <th colspan="7"></th>
       </tr>
       <tr>
-        <th class="text-right" style="width:{{ WIDTH_REGION }}px;">Country</th>
+        <th class="text-right" style="width:{{ WIDTH_REGION }}px;">{{ {'Country/Region': 'Country', 'Province/State': 'State'}.get(COL_REGION, 'Location') }}</th>
         <th class="text-left" style="width:{{ WIDTH_STRIP }}px;">New Cases</th>
         <th class="text-left" colspan="2">Total Cases</th>
         <th colspan="2">Deaths</th>
