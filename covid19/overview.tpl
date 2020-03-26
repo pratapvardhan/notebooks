@@ -84,11 +84,10 @@
 <div class="overview">
   {{ toplinks() }}
   <div>
-    <div class="kpi-hed">{{ KPI_CASE }}</div>
+    <div class="kpi-hed text-center">{{ KPI_CASE }}</div>
     <div class="d-flex kpi-box">
       {{ kpi(name='Confirmed Cases', number=D['Cases'], growth=D['Cases (+)']) }}
       {{ kpi(name='Deaths', number=D['Deaths'], growth=D['Deaths (+)']) }}
-      {{ kpi(name='Recovered', number=D['Recovered'], growth=D['Recovered (+)'], growcls='pos') }}
     </div>
   </div>
   <p class="text-center text-uppercase fs9">Updated on <b>{{ D['updated'].strftime('%B %d, %Y') }}</b> ( +change since {{ lastdays }} days ago.)</p>
@@ -111,7 +110,6 @@
         <th class="text-left" colspan="2">Total Cases</th>
         <th colspan="2">Deaths</th>
         <th class="fs9" >Fatality</th>
-        <th class="fs9" colspan="2">Recovered</th>
       </tr>
     </thead>
     <tbody>
@@ -135,8 +133,6 @@
         <td class="pl1">{{ '{0:,.0f}'.format(row['Deaths']) }}</td>
         <td class="change neg">(<b>{{ '{0:+,.0f}'.format(row['Deaths (+)']) }}</b>)</td>
         <td class="pl1">{{ row['Fatality Rate'] }}%</td>
-        <td>{{ '{0:,.0f}'.format(row['Recovered']) }}</td>
-        <td class="change pos">(<b>{{ '{0:+,.0f}'.format(row['Recovered (+)']) }}</b>)</td>
       </tr>
     {% endfor %}
     </tbody>
